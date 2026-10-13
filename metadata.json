@@ -1,0 +1,6 @@
+{
+  "name": "Restaurantes Cercanos",
+  "description": "Encuentra restaurantes cercanos a tu ubicación en tiempo real con mapa interactivo y guarda tus favoritos.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
