@@ -24,7 +24,7 @@ jobs:
           java-version: '21'
 
       - name: Instalar dependencias
-        run: npm ci
+        run: npm install
 
       - name: Compilar web
         run: npm run build
