@@ -23,10 +23,10 @@ jobs:
           java-version: '21'
 
       - name: Instalar dependencias
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Compilar web
-        run: npm install --legacy-peer-deps
+        run: npm run build
 
       - name: Crear proyecto Android
         run: npx cap add android
@@ -37,6 +37,9 @@ jobs:
 
       - name: Guardar APK
         uses: actions/upload-artifact@v4
+        with:
+          name: donde-comemos-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
         with:
           name: donde-comemos-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
