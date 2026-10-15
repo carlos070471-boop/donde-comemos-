@@ -76,45 +76,39 @@ function MainApp() {
     sortBy: 'distance',
   });
 
-  // Request browser geolocation
-  const requestBrowserLocation = useCallback(() => {
-    if (!navigator.geolocation) {
-      setLocationError('Tu navegador no soporta geolocalización.');
-      setLocationLabel('Madrid (Centro)');
-      return;
-    }
-
+    // Request native Android geolocation
+  const requestBrowserLocation = useCallback(async () => {
     setIsLocating(true);
     setLocationError(null);
+    setLocationLabel('Detectando ubicación...');
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const newCoords: Coordinates = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-        setUserCoords(newCoords);
-        setLocationLabel('Tu ubicación GPS');
-        setIsLocating(false);
-      },
-      (error) => {
-        console.warn('Geolocation access issue:', error.message);
-        setIsLocating(false);
-        setLocationLabel('Madrid (Centro)');
-        if (error.code === error.PERMISSION_DENIED) {
-          setLocationError(
-            'Permiso de ubicación no concedido en el navegador. Puedes seleccionar una ciudad o activar el GPS.'
-          );
-        } else {
-          setLocationError('No se pudo obtener la señal GPS exacta.');
-        }
-      },
-      {
+    try {
+      await Geolocation.requestPermissions();
+
+      const position = await Geolocation.getCurrentPosition({
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 60000,
-      }
-    );
+        timeout: 15000,
+        maximumAge: 0,
+      });
+
+      const newCoords: Coordinates = {
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+      };
+
+      setUserCoords(newCoords);
+      setLocationLabel('Tu ubicación GPS');
+      setLocationError(null);
+    } catch (error) {
+      console.warn('Error obteniendo ubicación GPS:', error);
+
+      setLocationLabel('Ubicación no disponible');
+      setLocationError(
+        'No se pudo obtener tu ubicación. Comprueba que el GPS esté activado y permite a la aplicación acceder a tu ubicación.'
+      );
+    } finally {
+      setIsLocating(false);
+    }
   }, []);
 
   // Request location on initial mount
