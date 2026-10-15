@@ -1,3 +1,4 @@
+
 name: Compilar APK Android
 
 on:
@@ -19,7 +20,7 @@ jobs:
         with:
           node-version: 22
 
-                - name: Preparar Java 21
+      - name: Preparar Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -33,6 +34,10 @@ jobs:
 
       - name: Crear proyecto Android con Capacitor
         run: npx cap add android
+
+      - name: Añadir permisos de ubicación
+        run: |
+          sed -i '/<application/i\    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' android/app/src/main/AndroidManifest.xml
 
       - name: Compilar APK de depuración
         working-directory: android
