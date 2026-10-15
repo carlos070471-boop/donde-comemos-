@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { APIProvider } from '@vis.gl/react-google-maps';
+import { Geolocation } from '@capacitor/geolocation';
 import {
   UtensilsCrossed,
   MapPin,
