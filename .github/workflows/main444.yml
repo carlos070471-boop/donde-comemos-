@@ -25,9 +25,6 @@ jobs:
       - name: Crear aplicación web
         run: npm run build
 
-      - name: Configurar entorno Android
-        uses: android-actions/setup-android@v3
-
       - name: Crear proyecto Android con Capacitor
         run: npx cap add android
 
