@@ -32,6 +32,10 @@ jobs:
       - name: Crear proyecto Android
         run: npx cap add android
 
+              - name: Añadir permisos de ubicación
+        run: |
+          sed -i '/<application/i\    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' android/app/src/main/AndroidManifest.xml
+
       - name: Compilar APK
         working-directory: android
         run: ./gradlew assembleDebug
