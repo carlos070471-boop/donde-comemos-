@@ -20,7 +20,7 @@ jobs:
           node-version: 22
 
       - name: Instalar dependencias
-        run: npm install
+        run: npm install --legacy-peer-deps
 
       - name: Crear aplicación web
         run: npm run build
