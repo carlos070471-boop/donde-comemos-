@@ -21,10 +21,10 @@ async function nativeImage(url: string): Promise<string> {
     throw requestError('Descarga de la imagen', response.status);
   }
   const contentType = Object.entries(response.headers).find(([key]) => key.toLowerCase() === 'content-type')?.[1]?.split(';')[0];
-  if (!contentType?.startsWith('image/') || typeof response.data !== 'string' || !response.data) {
+  if ((contentType && !contentType.startsWith('image/')) || typeof response.data !== 'string' || !response.data) {
     throw new Error('Google no devolvió una imagen válida');
   }
-  return `data:${contentType};base64,${response.data.replace(/\s/g, '')}`;
+  return `data:${contentType || 'image/jpeg'};base64,${response.data.replace(/\s/g, '')}`;
 }
 
 async function googleJson(url: string, headers: Record<string, string>, stage: string) {
@@ -67,7 +67,7 @@ export async function fetchRestaurantPhoto(placeId: string): Promise<PlacePhoto 
         'Enlace de la foto',
       );
       if (typeof media.photoUri === 'string' && media.photoUri.startsWith('https://')) {
-        const url = Capacitor.isNativePlatform() ? await nativeImage(media.photoUri) : media.photoUri;
+        // The native HTTP plugin may omit Content-Type or fail on Google's image CDN.\n        // In that case, let the Android WebView load the genuine photo URL directly.\n        let url = media.photoUri;\n        if (Capacitor.isNativePlatform()) {\n          try { url = await nativeImage(media.photoUri); }\n          catch (imageError) {\n            console.warn('Native image download failed; using Google photo URL', imageError);\n          }\n        }
         return { url, authors: photo.authorAttributions || [] };
       }
     } catch (error) {
