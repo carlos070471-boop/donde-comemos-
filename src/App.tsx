@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { APIProvider } from '@vis.gl/react-google-maps';
+import { APIProvider, useMapsLibrary } from '@vis.gl/react-google-maps';
 import { Geolocation } from '@capacitor/geolocation';
 import {
   UtensilsCrossed,
@@ -41,6 +41,7 @@ export default function App() {
 }
 
 function MainApp() {
+  const placesLibrary = useMapsLibrary('places');
   // Navigation & View state
   const [activeTab, setActiveTab] = useState<'list' | 'map' | 'favorites'>('list');
 
@@ -118,6 +119,7 @@ function MainApp() {
 
   // Load nearby restaurants when location or search radius changes
   useEffect(() => {
+    if (!placesLibrary) return;
     let isCancelled = false;
 
     async function loadRestaurants() {
@@ -144,7 +146,7 @@ function MainApp() {
     return () => {
       isCancelled = true;
     };
-  }, [userCoords, filters.maxDistanceMeters]);
+  }, [userCoords, filters.maxDistanceMeters, placesLibrary]);
 
   // Filter and sort restaurants
   const filteredRestaurants = useMemo(() => {
@@ -470,3 +472,4 @@ function MainApp() {
     </div>
   );
 }
+
