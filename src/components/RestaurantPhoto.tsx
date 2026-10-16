@@ -13,6 +13,7 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
   const [photo, setPhoto] = useState<PlacePhoto | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [status, setStatus] = useState<'loading' | 'ready' | 'missing' | 'error'>('loading');
+  const [usingFallback, setUsingFallback] = useState(false);
 
   useEffect(() => {
     if (!element.current) return;
@@ -31,21 +32,20 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
     if (!visible) return;
     let active = true;
     setErrorMessage('');
+    setUsingFallback(false);
 
-    // Camino principal: la URL viene directamente del SDK Google Places.
-    // Es la misma fuente que usa Maps y funciona mejor dentro de Android WebView.
     if (restaurant.photoUrl) {
       setPhoto({ url: restaurant.photoUrl, authors: [] });
       setStatus('ready');
       return () => { active = false; };
     }
 
-    // Compatibilidad con favoritos antiguos que todavía no tengan photoUrl.
     setPhoto(null);
     setStatus('loading');
     fetchRestaurantPhoto(restaurant.id).then(result => {
       if (!active) return;
       setPhoto(result);
+      setUsingFallback(true);
       setStatus(result ? 'ready' : 'missing');
     }).catch(error => {
       if (active) {
@@ -56,6 +56,26 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
     return () => { active = false; };
   }, [restaurant.id, restaurant.photoUrl, visible]);
 
+  const handleImageError = async () => {
+    if (!usingFallback && restaurant.id && !restaurant.id.startsWith('google_place_')) {
+      setStatus('loading');
+      setErrorMessage('');
+      try {
+        const fallback = await fetchRestaurantPhoto(restaurant.id);
+        if (fallback) {
+          setUsingFallback(true);
+          setPhoto(fallback);
+          setStatus('ready');
+          return;
+        }
+      } catch (error) {
+        setErrorMessage(error instanceof Error ? error.message : 'Error de conexión');
+      }
+    }
+    setStatus('error');
+    setErrorMessage(current => current || 'Android no pudo mostrar esta fotografía');
+  };
+
   return (
     <div ref={element} className={`relative overflow-hidden bg-stone-100 ${className}`}>
       {photo && status === 'ready' ? (
@@ -65,10 +85,8 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
             alt={`Fotografía de ${restaurant.name}`}
             className="w-full h-full object-cover"
             loading="lazy"
-            onError={() => {
-              setStatus('error');
-              setErrorMessage('Android no pudo mostrar esta fotografía');
-            }}
+            referrerPolicy="no-referrer"
+            onError={handleImageError}
           />
           <div className="absolute z-20 bottom-0 inset-x-0 px-1 py-0.5 bg-black/70 text-white text-[9px] leading-tight">
             Google Maps{photo.authors.map((author, index) => (
