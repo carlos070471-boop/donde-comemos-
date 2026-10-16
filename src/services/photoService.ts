@@ -67,7 +67,15 @@ export async function fetchRestaurantPhoto(placeId: string): Promise<PlacePhoto 
         'Enlace de la foto',
       );
       if (typeof media.photoUri === 'string' && media.photoUri.startsWith('https://')) {
-        // The native HTTP plugin may omit Content-Type or fail on Google's image CDN.\n        // In that case, let the Android WebView load the genuine photo URL directly.\n        let url = media.photoUri;\n        if (Capacitor.isNativePlatform()) {\n          try { url = await nativeImage(media.photoUri); }\n          catch (imageError) {\n            console.warn('Native image download failed; using Google photo URL', imageError);\n          }\n        }
+        // The native HTTP plugin may omit Content-Type or fail on Google's image CDN.
+        // In that case, let the Android WebView load the genuine photo URL directly.
+        let url = media.photoUri;
+        if (Capacitor.isNativePlatform()) {
+          try { url = await nativeImage(media.photoUri); }
+          catch (imageError) {
+            console.warn('Native image download failed; using Google photo URL', imageError);
+          }
+        }
         return { url, authors: photo.authorAttributions || [] };
       }
     } catch (error) {
