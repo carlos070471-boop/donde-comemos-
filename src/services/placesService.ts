@@ -4,7 +4,6 @@ import { calculateDistance } from '../utils/distance';
 const OVERPASS_ENDPOINTS = [
   'https://overpass.kumi.systems/api/interpreter',
   'https://overpass-api.de/api/interpreter',
-  'https://overpass.nchc.org.tw/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
 ];
 
@@ -30,12 +29,15 @@ function photoFromTags(tags: Record<string, string>): string | undefined {
 
 async function queryOverpass(endpoint: string, query: string): Promise<any> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 18000);
+  const timeout = setTimeout(() => controller.abort(), 6500);
   try {
-    const url = `${endpoint}?data=${encodeURIComponent(query)}`;
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: { Accept: 'application/json' },
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      },
+      body: `data=${encodeURIComponent(query)}`,
       signal: controller.signal,
     });
     if (!response.ok) throw new Error(`Overpass ${response.status}`);
@@ -80,29 +82,34 @@ function mapElements(data: any, center: Coordinates): Restaurant[] {
     .sort((a, b) => (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0));
 }
 
-/** Busca locales de comida cercanos con OpenStreetMap/Overpass, sin API de pago. */
+async function firstUsefulResult(query: string, center: Coordinates): Promise<Restaurant[]> {
+  const attempts = OVERPASS_ENDPOINTS.map(async endpoint => {
+    try {
+      const data = await queryOverpass(endpoint, query);
+      const restaurants = mapElements(data, center);
+      if (!restaurants.length) throw new Error('Sin resultados');
+      return restaurants;
+    } catch (error) {
+      console.warn('Servidor Overpass no disponible:', endpoint, error);
+      throw error;
+    }
+  });
+
+  try {
+    return await Promise.any(attempts);
+  } catch {
+    return [];
+  }
+}
+
+/** Busca locales cercanos con OpenStreetMap/Overpass sin API de pago. */
 export async function fetchNearbyRestaurants(
   center: Coordinates,
   radiusMeters: number = 2500
 ): Promise<{ restaurants: Restaurant[]; source: 'google' | 'fallback' }> {
-  const requestedRadius = Math.min(Math.max(Math.round(radiusMeters), 500), 10000);
-  // Si una zona tiene pocos datos OSM, hacemos un segundo intento algo más amplio,
-  // pero App.tsx seguirá filtrando y mostrando solo los que estén dentro del radio elegido.
-  const searchRadii = Array.from(new Set([requestedRadius, Math.min(Math.max(requestedRadius * 2, 5000), 10000)]));
+  const radius = Math.min(Math.max(Math.round(radiusMeters), 500), 10000);
+  const query = `[out:json][timeout:6];(nwr(around:${radius},${center.lat},${center.lng})[amenity~"^(restaurant|cafe|fast_food|bar|pub|food_court)$"];nwr(around:${radius},${center.lat},${center.lng})[shop="bakery"];);out center tags;`;
 
-  for (const radius of searchRadii) {
-    const query = `[out:json][timeout:15];(nwr(around:${radius},${center.lat},${center.lng})[amenity~"^(restaurant|cafe|fast_food|bar|pub|food_court)$"];nwr(around:${radius},${center.lat},${center.lng})[shop="bakery"];);out center tags;`;
-
-    for (const endpoint of OVERPASS_ENDPOINTS) {
-      try {
-        const data = await queryOverpass(endpoint, query);
-        const restaurants = mapElements(data, center);
-        if (restaurants.length > 0) return { restaurants, source: 'fallback' };
-      } catch (error) {
-        console.warn('Fallo Overpass, probando otro servidor:', endpoint, error);
-      }
-    }
-  }
-
-  return { restaurants: [], source: 'fallback' };
+  const restaurants = await firstUsefulResult(query, center);
+  return { restaurants, source: 'fallback' };
 }
