@@ -1,3 +1,4 @@
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { GOOGLE_MAPS_API_KEY } from '../config/googleMaps';
 
 export interface PlacePhoto {
@@ -7,6 +8,21 @@ export interface PlacePhoto {
 
 async function googleJson(url: string, headers: Record<string, string>, stage: string) {
   try {
+    // En Android hacemos la petición de forma nativa. Esto evita las
+    // restricciones CORS/origen del WebView que impedían obtener las fotos.
+    if (Capacitor.isNativePlatform()) {
+      const response = await CapacitorHttp.get({
+        url,
+        headers,
+        connectTimeout: 12000,
+        readTimeout: 12000,
+      });
+      if (response.status < 200 || response.status >= 300) {
+        throw new Error(`${stage}: Google respondió ${response.status}`);
+      }
+      return response.data;
+    }
+
     const response = await fetch(url, { headers, signal: AbortSignal.timeout(12000) });
     if (!response.ok) throw new Error(`${stage}: Google respondió ${response.status}`);
     return response.json();
@@ -16,12 +32,6 @@ async function googleJson(url: string, headers: Record<string, string>, stage: s
   }
 }
 
-/**
- * Obtiene una URL temporal y directa de la fotografía de Google Places.
- * Pedimos skipHttpRedirect=true para que Google nos devuelva photoUri en JSON.
- * Así el WebView Android carga la URL final de la imagen y no tiene que seguir
- * el endpoint /media con la clave API dentro de una etiqueta <img>.
- */
 export async function fetchRestaurantPhoto(placeId: string): Promise<PlacePhoto | null> {
   if (!placeId || placeId.startsWith('google_place_')) return null;
 
