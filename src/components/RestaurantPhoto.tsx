@@ -3,7 +3,12 @@ import { ImageOff } from 'lucide-react';
 import { fetchRestaurantPhoto, PlacePhoto } from '../services/photoService';
 
 interface Props {
-  restaurant: { id: string; name: string; photoUrl?: string };
+  restaurant: {
+    id: string;
+    name: string;
+    photoUrl?: string;
+    location?: { lat: number; lng: number };
+  };
   className?: string;
 }
 
@@ -42,7 +47,7 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
 
     setPhoto(null);
     setStatus('loading');
-    fetchRestaurantPhoto(restaurant.id).then(result => {
+    fetchRestaurantPhoto(restaurant).then(result => {
       if (!active) return;
       setPhoto(result);
       setUsingFallback(true);
@@ -54,14 +59,14 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
       }
     });
     return () => { active = false; };
-  }, [restaurant.id, restaurant.photoUrl, visible]);
+  }, [restaurant.id, restaurant.name, restaurant.photoUrl, restaurant.location?.lat, restaurant.location?.lng, visible]);
 
   const handleImageError = async () => {
-    if (!usingFallback && restaurant.id && !restaurant.id.startsWith('google_place_')) {
+    if (!usingFallback) {
       setStatus('loading');
       setErrorMessage('');
       try {
-        const fallback = await fetchRestaurantPhoto(restaurant.id);
+        const fallback = await fetchRestaurantPhoto(restaurant);
         if (fallback) {
           setUsingFallback(true);
           setPhoto(fallback);
@@ -75,6 +80,10 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
     setStatus('error');
     setErrorMessage(current => current || 'Android no pudo mostrar esta fotografía');
   };
+
+  const mapsQuery = restaurant.location
+    ? `${restaurant.name} ${restaurant.location.lat},${restaurant.location.lng}`
+    : restaurant.name;
 
   return (
     <div ref={element} className={`relative overflow-hidden bg-stone-100 ${className}`}>
@@ -104,7 +113,7 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
             status === 'missing' ? 'El local no tiene fotos disponibles' : 'No se pudo cargar la foto'}</span>
           {status === 'error' && errorMessage && <span className="text-[9px]">{errorMessage}</span>}
           {status !== 'loading' && <a className="text-[10px] underline text-amber-700"
-            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.name)}&query_place_id=${encodeURIComponent(restaurant.id)}`}
+            href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`}
             target="_blank" rel="noopener noreferrer" onClick={event => event.stopPropagation()}>
             Ver en Google Maps
           </a>}
