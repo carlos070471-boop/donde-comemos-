@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+
 import {
   X,
   Heart,
@@ -13,27 +14,42 @@ import {
   Check,
   FileEdit,
   Utensils,
+  MessageSquare,
 } from 'lucide-react';
 
-import { Restaurant } from '../types/restaurant';
+import {
+  Restaurant,
+  RestaurantReview,
+} from '../types/restaurant';
 
 import {
   formatDistance,
   getDirectionsUrl,
 } from '../utils/distance';
 
+import {
+  fetchRestaurantReviews,
+} from '../services/PlacesService';
+
 interface RestaurantDetailModalProps {
   restaurant: Restaurant | null;
   onClose: () => void;
   isFavorite: boolean;
   onToggleFavorite: (restaurant: Restaurant) => void;
-  onUpdateNote: (restaurantId: string, note: string) => void;
+  onUpdateNote: (
+    restaurantId: string,
+    note: string
+  ) => void;
   onViewOnMap?: (restaurant: Restaurant) => void;
 }
 
-// Imagen ilustrativa integrada.
-// Funciona sin conexión a Internet.
+/*
+ * Imagen alternativa integrada.
+ * No necesita Internet.
+ */
+
 const FALLBACK_IMAGE =
   'data:image/svg+xml;charset=utf-8,' +
   encodeURIComponent(`
-<svg xmlns="http://www.w3
+<svg xmlns="http://www.w3.org/2000/svg"
+viewBox="0 0 800 
