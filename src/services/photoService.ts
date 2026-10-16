@@ -17,10 +17,10 @@ async function googleJson(url: string, headers: Record<string, string>, stage: s
 }
 
 /**
- * Obtiene una referencia de foto fresca de Google Places.
- * La imagen se entrega directamente desde el endpoint media de Places.
- * Evitamos convertir la imagen a base64 en Android, que era la causa de
- * que WebView terminase mostrando "Fotografía no disponible".
+ * Obtiene una URL temporal y directa de la fotografía de Google Places.
+ * Pedimos skipHttpRedirect=true para que Google nos devuelva photoUri en JSON.
+ * Así el WebView Android carga la URL final de la imagen y no tiene que seguir
+ * el endpoint /media con la clave API dentro de una etiqueta <img>.
  */
 export async function fetchRestaurantPhoto(placeId: string): Promise<PlacePhoto | null> {
   if (!placeId || placeId.startsWith('google_place_')) return null;
@@ -33,18 +33,19 @@ export async function fetchRestaurantPhoto(placeId: string): Promise<PlacePhoto 
   );
 
   const photos = Array.isArray(details.photos) ? details.photos : [];
-  const photo = photos.find((item: any) =>
-    typeof item?.name === 'string' && item.name.startsWith(`places/${placeId}/photos/`)
-  );
-
+  const photo = photos.find((item: any) => typeof item?.name === 'string');
   if (!photo) return null;
 
-  // Con skipHttpRedirect=false Google devuelve la imagen real. La clave se
-  // envía como query param porque una etiqueta <img> no puede añadir headers.
-  const url = `https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=800&skipHttpRedirect=false&key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}`;
+  const media = await googleJson(
+    `https://places.googleapis.com/v1/${photo.name}/media?maxWidthPx=800&skipHttpRedirect=true`,
+    headers,
+    'Descarga de foto',
+  );
+
+  if (!media?.photoUri || typeof media.photoUri !== 'string') return null;
 
   return {
-    url,
+    url: media.photoUri,
     authors: Array.isArray(photo.authorAttributions) ? photo.authorAttributions : [],
   };
 }
