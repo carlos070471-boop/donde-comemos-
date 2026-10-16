@@ -1,3 +1,4 @@
+import { RestaurantPhoto } from './RestaurantPhoto';
 import React, { useState } from 'react';
 import { Heart, Trash2, Utensils, Navigation, Phone, Search, FileEdit, Star } from 'lucide-react';
 import { Restaurant } from '../types/restaurant';
@@ -125,15 +126,7 @@ export const FavoritesList: React.FC<FavoritesListProps> = ({
           >
             <div>
               <div className="flex items-start gap-3.5">
-                <img
-                  src={restaurant.photoUrl}
-                  alt={restaurant.name}
-                  className="w-20 h-20 rounded-xl object-cover shrink-0 border border-stone-100"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80';
-                  }}
-                />
+                <RestaurantPhoto restaurant={restaurant} className="w-20 h-20 rounded-xl shrink-0 border border-stone-100" />
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-1">
@@ -264,3 +257,4 @@ export const FavoritesList: React.FC<FavoritesListProps> = ({
     </div>
   );
 };
+

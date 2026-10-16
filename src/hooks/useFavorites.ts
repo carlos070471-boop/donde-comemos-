@@ -15,7 +15,7 @@ export function useFavorites() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(favorites.map(({ photoUrl, ...restaurant }) => restaurant)));
     } catch (e) {
       console.error('Error saving favorites to localStorage:', e);
     }
@@ -63,3 +63,4 @@ export function useFavorites() {
     favoritesCount: favorites.length,
   };
 }
+

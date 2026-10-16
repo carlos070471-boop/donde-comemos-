@@ -1,3 +1,4 @@
+import { RestaurantPhoto } from './RestaurantPhoto';
 import React, { useState } from 'react';
 import {
   Map,
@@ -135,15 +136,7 @@ export const MapView: React.FC<MapViewProps> = ({
             <div className="w-64 p-1 text-stone-900 font-['Plus_Jakarta_Sans',sans-serif]">
               {/* Photo */}
               <div className="relative h-28 w-full rounded-lg overflow-hidden mb-2 bg-stone-100">
-                <img
-                  src={infoWindowRestaurant.photoUrl}
-                  alt={infoWindowRestaurant.name}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src =
-                      'https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80';
-                  }}
-                />
+                <RestaurantPhoto restaurant={infoWindowRestaurant} className="w-full h-full" />
                 <button
                   onClick={() => onToggleFavorite(infoWindowRestaurant)}
                   className={`absolute top-2 right-2 p-1.5 rounded-full backdrop-blur-md shadow-xs ${
@@ -202,3 +195,4 @@ export const MapView: React.FC<MapViewProps> = ({
     </div>
   );
 };
+

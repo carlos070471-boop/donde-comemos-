@@ -54,7 +54,6 @@ export async function fetchNearbyRestaurants(
         'types',
         'primaryType',
         'primaryTypeDisplayName',
-        'photos',
       ],
 
       locationRestriction: {
@@ -117,112 +116,6 @@ export async function fetchNearbyRestaurants(
           };
 
           /*
-           * FOTOGRAFÍAS
-           *
-           * Busca fotografías reales del establecimiento.
-           * Intenta priorizar fachada, entrada e interior.
-           */
-
-          let photoUrl: string | undefined;
-
-          if (place.photos?.length) {
-            try {
-              const photos = [...place.photos];
-
-              const getPhotoText = (photo: any): string => {
-                return [
-                  photo.displayName,
-                  photo.description,
-                  photo.name,
-                ]
-                  .filter(Boolean)
-                  .join(' ')
-                  .toLowerCase();
-              };
-
-              const photoScore = (photo: any): number => {
-                const description = getPhotoText(photo);
-
-                let score = 0;
-
-                const preferredWords = [
-                  'fachada',
-                  'entrada',
-                  'exterior',
-                  'interior',
-                  'terraza',
-                  'local',
-                  'restaurant exterior',
-                  'restaurant interior',
-                  'entrance',
-                  'facade',
-                  'storefront',
-                  'dining room',
-                ];
-
-                const lessPreferredWords = [
-                  'food',
-                  'dish',
-                  'meal',
-                  'plato',
-                  'comida',
-                  'bebida',
-                ];
-
-                for (const word of preferredWords) {
-                  if (description.includes(word)) {
-                    score += 10;
-                  }
-                }
-
-                for (const word of lessPreferredWords) {
-                  if (description.includes(word)) {
-                    score -= 5;
-                  }
-                }
-
-                return score;
-              };
-
-              photos.sort(
-                (a: any, b: any) =>
-                  photoScore(b) - photoScore(a)
-              );
-
-              for (const photo of photos) {
-                try {
-                  if (
-                    typeof photo.getURI === 'function'
-                  ) {
-                    const uri = photo.getURI({
-                      maxWidth: 800,
-                      maxHeight: 600,
-                    });
-
-                    if (
-                      typeof uri === 'string' &&
-                      uri.startsWith('https://')
-                    ) {
-                      photoUrl = uri;
-                      break;
-                    }
-                  }
-                } catch (photoError) {
-                  console.warn(
-                    'Error obteniendo una fotografía:',
-                    photoError
-                  );
-                }
-              }
-            } catch (error) {
-              console.warn(
-                'Error procesando fotografías:',
-                error
-              );
-            }
-          }
-
-          /*
            * NIVEL DE PRECIOS
            */
 
@@ -283,8 +176,6 @@ export async function fetchNearbyRestaurants(
 
             websiteUri:
               place.websiteURI,
-
-            photoUrl,
 
             types:
               place.types || ['restaurant'],

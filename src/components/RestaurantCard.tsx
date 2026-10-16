@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import { RestaurantPhoto } from './RestaurantPhoto';
+import React from 'react';
 import {
   Heart,
   Star,
@@ -22,84 +23,6 @@ interface RestaurantCardProps {
   onSelect: (restaurant: Restaurant) => void;
 }
 
-/*
- * Imagen ilustrativa integrada en la aplicación.
- * No necesita conexión a Internet.
- */
-const FALLBACK_IMAGE = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(`
-<svg xmlns="http://www.w3.org/2000/svg"
-     viewBox="0 0 800 500">
-  <defs>
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#fef3c7"/>
-      <stop offset="100%" stop-color="#fde68a"/>
-    </linearGradient>
-  </defs>
-
-  <rect width="800" height="500" fill="url(#sky)"/>
-
-  <rect y="385" width="800" height="115"
-        fill="#d6d3d1"/>
-
-  <rect x="125" y="115" width="550" height="290"
-        rx="8" fill="#fafaf9"/>
-
-  <rect x="125" y="115" width="550" height="65"
-        fill="#92400e"/>
-
-  <text x="400" y="157"
-        font-family="Arial, sans-serif"
-        font-size="32"
-        font-weight="bold"
-        text-anchor="middle"
-        fill="#ffffff">
-    RESTAURANTE
-  </text>
-
-  <rect x="165" y="205" width="150" height="135"
-        fill="#a5d8e8"/>
-
-  <rect x="485" y="205" width="150" height="135"
-        fill="#a5d8e8"/>
-
-  <rect x="345" y="205" width="110" height="200"
-        fill="#78350f"/>
-
-  <rect x="365" y="225" width="70" height="120"
-        fill="#bae6fd"/>
-
-  <circle cx="443" cy="310" r="6"
-          fill="#fbbf24"/>
-
-  <rect x="110" y="180" width="580" height="30"
-        fill="#d97706"/>
-
-  <path d="M110 210
-           Q145 260 180 210
-           Q215 260 250 210
-           Q285 260 320 210
-           Q355 260 390 210
-           Q425 260 460 210
-           Q495 260 530 210
-           Q565 260 600 210
-           Q635 260 690 210"
-        fill="#f59e0b"
-        stroke="#b45309"
-        stroke-width="3"/>
-
-  <rect x="0" y="445" width="800" height="55"
-        fill="#292524"/>
-
-  <text x="400" y="477"
-        font-family="Arial, sans-serif"
-        font-size="22"
-        text-anchor="middle"
-        fill="#ffffff">
-    Imagen ilustrativa
-  </text>
-</svg>
-`)}`;
-
 export const RestaurantCard: React.FC<
   RestaurantCardProps
 > = ({
@@ -108,19 +31,6 @@ export const RestaurantCard: React.FC<
   onToggleFavorite,
   onSelect,
 }) => {
-
-  const [imageError, setImageError] = useState(false);
-
-  useEffect(() => {
-    setImageError(false);
-  }, [restaurant.photoUrl]);
-
-  const hasPhoto =
-    Boolean(restaurant.photoUrl) && !imageError;
-
-  const imageSource = hasPhoto
-    ? restaurant.photoUrl
-    : FALLBACK_IMAGE;
 
   const priceString = restaurant.priceLevel
     ? '€'.repeat(restaurant.priceLevel)
@@ -150,33 +60,7 @@ export const RestaurantCard: React.FC<
         "
       >
 
-        <img
-          src={imageSource}
-          alt={
-            hasPhoto
-              ? `Fotografía de ${restaurant.name}`
-              : 'Imagen ilustrativa de un restaurante'
-          }
-          loading="lazy"
-          className="
-            w-full h-full object-cover
-            group-hover:scale-105
-            transition-transform duration-300
-          "
-          onError={() => setImageError(true)}
-        />
-
-        {!hasPhoto && (
-          <div
-            className="
-              absolute bottom-0 left-0 right-0
-              bg-stone-900/80 text-white
-              text-[10px] text-center py-1
-            "
-          >
-            Imagen ilustrativa
-          </div>
-        )}
+        <RestaurantPhoto restaurant={restaurant} className="w-full h-full min-h-44" />
 
         {/* DISTANCIA */}
 
@@ -539,3 +423,4 @@ export const RestaurantCard: React.FC<
     </article>
   );
 };
+

@@ -22,9 +22,7 @@ import { MapView } from './components/MapView';
 import { FavoritesList } from './components/FavoritesList';
 import { LocationPrompt } from './components/LocationPrompt';
 
-const GOOGLE_MAPS_API_KEY =
-  import.meta.env.VITE_GOOGLE_MAPS_API_KEY ||
-  'AIzaSyBC9GrSlb51EbmHs7p2ON8Ybj431vgIJ60';
+import { GOOGLE_MAPS_API_KEY } from './config/googleMaps';
 
 // Default initial location: Madrid (Puerta del Sol)
 const DEFAULT_LOCATION: Coordinates = {

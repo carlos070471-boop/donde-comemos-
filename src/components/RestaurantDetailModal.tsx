@@ -1,3 +1,4 @@
+import { RestaurantPhoto } from './RestaurantPhoto';
 
 import React, { useState, useEffect } from 'react';
 import {
@@ -14,7 +15,6 @@ import {
   Check,
   FileEdit,
   Utensils,
-  ImageOff,
 } from 'lucide-react';
 
 import { Restaurant } from '../types/restaurant';
@@ -44,20 +44,17 @@ export const RestaurantDetailModal: React.FC<RestaurantDetailModalProps> = ({
   const [noteText, setNoteText] = useState('');
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
-  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
     setNoteText(restaurant?.notes || '');
     setIsEditingNote(false);
     setNoteSaved(false);
     setCopiedAddress(false);
-    setImageError(false);
   }, [restaurant?.id, restaurant?.notes, restaurant?.photoUrl]);
 
   if (!restaurant) return null;
 
   const currentRestaurant = restaurant;
-  const hasPhoto = Boolean(restaurant.photoUrl) && !imageError;
 
   const priceString = restaurant.priceLevel
     ? '€'.repeat(restaurant.priceLevel)
@@ -109,21 +106,7 @@ export const RestaurantDetailModal: React.FC<RestaurantDetailModalProps> = ({
         {/* Fotografía real */}
         <div className="relative h-56 sm:h-64 w-full bg-stone-200 shrink-0">
 
-          {hasPhoto ? (
-            <img
-              src={restaurant.photoUrl}
-              alt={`Fotografía de ${restaurant.name}`}
-              className="w-full h-full object-cover"
-              onError={() => setImageError(true)}
-            />
-          ) : (
-            <div className="w-full h-full flex flex-col items-center justify-center gap-2 text-stone-500">
-              <ImageOff className="w-10 h-10" />
-              <span className="text-sm">
-                Fotografía no disponible
-              </span>
-            </div>
-          )}
+          <RestaurantPhoto restaurant={restaurant} className="w-full h-full" />
 
           <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-transparent pointer-events-none" />
 
