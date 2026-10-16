@@ -1,5 +1,10 @@
 {
   "appId": "com.dondecomemos.app",
   "appName": "Dónde comemos",
-  "webDir": "dist"
+  "webDir": "dist",
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": true
+    }
+  }
 }
