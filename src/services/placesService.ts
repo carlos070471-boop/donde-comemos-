@@ -1,11 +1,15 @@
-import { Coordinates, Restaurant } from '../types/restaurant';
+import {
+  Coordinates,
+  Restaurant,
+  RestaurantReview,
+} from '../types/restaurant';
+
 import { calculateDistance } from '../utils/distance';
 
 /**
  * Busca restaurantes reales mediante Google Places.
- * Obtiene fotografías auténticas cuando están disponibles.
+ * Mantiene fotografías, valoraciones y demás datos.
  */
-
 export async function fetchNearbyRestaurants(
   center: Coordinates,
   radiusMeters: number = 2500
@@ -118,9 +122,6 @@ export async function fetchNearbyRestaurants(
 
           /*
            * FOTOGRAFÍAS
-           *
-           * Busca fotografías reales del establecimiento.
-           * Intenta priorizar fachada, entrada e interior.
            */
 
           let photoUrl: string | undefined;
@@ -129,197 +130,11 @@ export async function fetchNearbyRestaurants(
             try {
               const photos = [...place.photos];
 
-              const getPhotoText = (photo: any): string => {
+              const getPhotoText = (
+                photo: any
+              ): string => {
                 return [
                   photo.displayName,
                   photo.description,
                   photo.name,
                 ]
-                  .filter(Boolean)
-                  .join(' ')
-                  .toLowerCase();
-              };
-
-              const photoScore = (photo: any): number => {
-                const description = getPhotoText(photo);
-
-                let score = 0;
-
-                const preferredWords = [
-                  'fachada',
-                  'entrada',
-                  'exterior',
-                  'interior',
-                  'terraza',
-                  'local',
-                  'restaurant exterior',
-                  'restaurant interior',
-                  'entrance',
-                  'facade',
-                  'storefront',
-                  'dining room',
-                ];
-
-                const lessPreferredWords = [
-                  'food',
-                  'dish',
-                  'meal',
-                  'plato',
-                  'comida',
-                  'bebida',
-                ];
-
-                for (const word of preferredWords) {
-                  if (description.includes(word)) {
-                    score += 10;
-                  }
-                }
-
-                for (const word of lessPreferredWords) {
-                  if (description.includes(word)) {
-                    score -= 5;
-                  }
-                }
-
-                return score;
-              };
-
-              photos.sort(
-                (a: any, b: any) =>
-                  photoScore(b) - photoScore(a)
-              );
-
-              for (const photo of photos) {
-                try {
-                  if (
-                    typeof photo.getURI === 'function'
-                  ) {
-                    const uri = photo.getURI({
-                      maxWidth: 800,
-                      maxHeight: 600,
-                    });
-
-                    if (
-                      typeof uri === 'string' &&
-                      uri.startsWith('https://')
-                    ) {
-                      photoUrl = uri;
-                      break;
-                    }
-                  }
-                } catch (photoError) {
-                  console.warn(
-                    'Error obteniendo una fotografía:',
-                    photoError
-                  );
-                }
-              }
-            } catch (error) {
-              console.warn(
-                'Error procesando fotografías:',
-                error
-              );
-            }
-          }
-
-          /*
-           * NIVEL DE PRECIOS
-           */
-
-          let priceLevel: number | undefined;
-
-          if (typeof place.priceLevel === 'number') {
-            priceLevel = place.priceLevel;
-          } else if (
-            typeof place.priceLevel === 'string'
-          ) {
-            const levels: Record<string, number> = {
-              PRICE_LEVEL_FREE: 1,
-              PRICE_LEVEL_INEXPENSIVE: 1,
-              PRICE_LEVEL_MODERATE: 2,
-              PRICE_LEVEL_EXPENSIVE: 3,
-              PRICE_LEVEL_VERY_EXPENSIVE: 4,
-            };
-
-            priceLevel = levels[place.priceLevel];
-          }
-
-          /*
-           * INFORMACIÓN DEL RESTAURANTE
-           */
-
-          return {
-            id:
-              place.id ||
-              `google_place_${index}`,
-
-            name:
-              place.displayName ||
-              'Restaurante sin nombre',
-
-            address:
-              place.formattedAddress ||
-              'Dirección no disponible',
-
-            location,
-
-            distanceMeters: calculateDistance(
-              center,
-              location
-            ),
-
-            rating: place.rating,
-
-            userRatingCount:
-              place.userRatingCount,
-
-            priceLevel,
-
-            isOpenNow:
-              place.currentOpeningHours?.openNow,
-
-            phoneNumber:
-              place.nationalPhoneNumber,
-
-            websiteUri:
-              place.websiteURI,
-
-            photoUrl,
-
-            types:
-              place.types || ['restaurant'],
-
-            primaryType:
-              place.primaryTypeDisplayName ||
-              place.primaryType ||
-              'Restaurante',
-          };
-        }
-      );
-
-    /*
-     * ORDENAR POR DISTANCIA
-     */
-
-    restaurants.sort(
-      (a, b) =>
-        (a.distanceMeters ?? 0) -
-        (b.distanceMeters ?? 0)
-    );
-
-    return {
-      restaurants,
-      source: 'google',
-    };
-  } catch (error) {
-    console.error(
-      'Error consultando Google Places:',
-      error
-    );
-
-    return {
-      restaurants: [],
-      source: 'fallback',
-    };
-  }
-}
