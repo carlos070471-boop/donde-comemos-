@@ -3,7 +3,7 @@ import { ImageOff } from 'lucide-react';
 import { fetchRestaurantPhoto, PlacePhoto } from '../services/photoService';
 
 interface Props {
-  restaurant: { id: string; name: string };
+  restaurant: { id: string; name: string; photoUrl?: string };
   className?: string;
 }
 
@@ -13,6 +13,7 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
   const [photo, setPhoto] = useState<PlacePhoto | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [status, setStatus] = useState<'loading' | 'ready' | 'missing' | 'error'>('loading');
+
   useEffect(() => {
     if (!element.current) return;
     if (typeof IntersectionObserver === 'undefined') { setVisible(true); return; }
@@ -25,12 +26,23 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
     observer.observe(element.current);
     return () => observer.disconnect();
   }, []);
+
   useEffect(() => {
     if (!visible) return;
     let active = true;
+    setErrorMessage('');
+
+    // Camino principal: la URL viene directamente del SDK Google Places.
+    // Es la misma fuente que usa Maps y funciona mejor dentro de Android WebView.
+    if (restaurant.photoUrl) {
+      setPhoto({ url: restaurant.photoUrl, authors: [] });
+      setStatus('ready');
+      return () => { active = false; };
+    }
+
+    // Compatibilidad con favoritos antiguos que todavía no tengan photoUrl.
     setPhoto(null);
     setStatus('loading');
-    setErrorMessage('');
     fetchRestaurantPhoto(restaurant.id).then(result => {
       if (!active) return;
       setPhoto(result);
@@ -42,14 +54,22 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
       }
     });
     return () => { active = false; };
-  }, [restaurant.id, visible]);
+  }, [restaurant.id, restaurant.photoUrl, visible]);
+
   return (
     <div ref={element} className={`relative overflow-hidden bg-stone-100 ${className}`}>
       {photo && status === 'ready' ? (
         <>
-          <img src={photo.url} alt={`Fotografía de ${restaurant.name}`}
-            referrerPolicy="no-referrer" className="w-full h-full object-cover"
-            onError={() => { setStatus('error'); setErrorMessage('Android no pudo mostrar la imagen descargada'); }} />
+          <img
+            src={photo.url}
+            alt={`Fotografía de ${restaurant.name}`}
+            className="w-full h-full object-cover"
+            loading="lazy"
+            onError={() => {
+              setStatus('error');
+              setErrorMessage('Android no pudo mostrar esta fotografía');
+            }}
+          />
           <div className="absolute z-20 bottom-0 inset-x-0 px-1 py-0.5 bg-black/70 text-white text-[9px] leading-tight">
             Google Maps{photo.authors.map((author, index) => (
               <React.Fragment key={index}> · {author.uri ? (
