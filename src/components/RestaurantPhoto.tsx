@@ -11,6 +11,7 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
   const element = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
   const [photo, setPhoto] = useState<PlacePhoto | null>(null);
+  const [errorMessage, setErrorMessage] = useState('');
   const [status, setStatus] = useState<'loading' | 'ready' | 'missing' | 'error'>('loading');
   useEffect(() => {
     if (!element.current) return;
@@ -29,11 +30,17 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
     let active = true;
     setPhoto(null);
     setStatus('loading');
+    setErrorMessage('');
     fetchRestaurantPhoto(restaurant.id).then(result => {
       if (!active) return;
       setPhoto(result);
       setStatus(result ? 'ready' : 'missing');
-    }).catch(() => { if (active) setStatus('error'); });
+    }).catch(error => {
+      if (active) {
+        setStatus('error');
+        setErrorMessage(error instanceof Error ? error.message : 'Error de conexión');
+      }
+    });
     return () => { active = false; };
   }, [restaurant.id, visible]);
   return (
@@ -42,7 +49,7 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
         <>
           <img src={photo.url} alt={`Fotografía de ${restaurant.name}`}
             referrerPolicy="no-referrer" className="w-full h-full object-cover"
-            onError={() => setStatus('error')} />
+            onError={() => { setStatus('error'); setErrorMessage('Android no pudo mostrar la imagen descargada'); }} />
           <div className="absolute z-20 bottom-0 inset-x-0 px-1 py-0.5 bg-black/70 text-white text-[9px] leading-tight">
             Google Maps{photo.authors.map((author, index) => (
               <React.Fragment key={index}> · {author.uri ? (
@@ -57,6 +64,7 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
           <ImageOff className="w-6 h-6" />
           <span className="text-[10px]">{status === 'loading' ? 'Cargando foto del local…' :
             status === 'missing' ? 'El local no tiene fotos disponibles' : 'No se pudo cargar la foto'}</span>
+          {status === 'error' && errorMessage && <span className="text-[9px]">{errorMessage}</span>}
           {status !== 'loading' && <a className="text-[10px] underline text-amber-700"
             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(restaurant.name)}&query_place_id=${encodeURIComponent(restaurant.id)}`}
             target="_blank" rel="noopener noreferrer" onClick={event => event.stopPropagation()}>
