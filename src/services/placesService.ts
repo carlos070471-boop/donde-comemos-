@@ -9,65 +9,49 @@ const OVERPASS_ENDPOINTS = [
 ];
 const CACHE_KEY = 'donde_comemos_last_restaurants';
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
-const REQUEST_TIMEOUT_MS = 9000;
-const TOTAL_TIMEOUT_MS = 20000;
+const REQUEST_TIMEOUT_MS = 12000;
+const TOTAL_TIMEOUT_MS = 18000;
 
 function addressFromTags(tags: Record<string, string>): string {
   const street = [tags['addr:street'], tags['addr:housenumber']].filter(Boolean).join(' ');
   return [street, tags['addr:postcode'], tags['addr:city']].filter(Boolean).join(', ') || 'Dirección no disponible';
 }
-
-function websiteFromTags(tags: Record<string, string>): string | undefined {
-  return tags.website || tags['contact:website'];
-}
-
+function websiteFromTags(tags: Record<string, string>): string | undefined { return tags.website || tags['contact:website']; }
 function normalizePhoto(value?: string): string | undefined {
   if (!value) return undefined;
   const raw = value.trim();
   if (/^https?:\/\//i.test(raw)) return raw;
   if (/^Category:/i.test(raw)) return undefined;
   const title = raw.replace(/^File:/i, '').trim();
-  if (!title) return undefined;
-  return `https://commons.wikimedia.org/wiki/Special:Redirect/file/${encodeURIComponent(title)}?width=1200`;
+  return title ? `https://commons.wikimedia.org/wiki/Special:Redirect/file/${encodeURIComponent(title)}?width=1200` : undefined;
 }
-
 function photosFromTags(tags: Record<string, string>): string[] {
-  return [...new Set([tags.image, tags.wikimedia_commons]
-    .flatMap(value => value ? value.split(';') : [])
-    .map(normalizePhoto)
-    .filter((url): url is string => Boolean(url)))];
+  return [...new Set([tags.image, tags.wikimedia_commons].flatMap(v => v ? v.split(';') : []).map(normalizePhoto).filter((u): u is string => Boolean(u)))];
 }
-
-function timeoutPromise(ms: number): Promise<never> {
-  return new Promise((_, reject) => setTimeout(() => reject(new Error('Tiempo de espera agotado')), ms));
-}
+function timeoutPromise(ms: number): Promise<never> { return new Promise((_, reject) => setTimeout(() => reject(new Error('Tiempo de espera agotado')), ms)); }
 
 async function queryOverpass(endpoint: string, query: string): Promise<any> {
   if (Capacitor.isNativePlatform()) {
-    const nativeRequest = CapacitorHttp.post({
+    // Native GET + params lets Capacitor encode the Overpass query itself.
+    // This avoids the form-body encoding issue that caused Android requests to fail.
+    const nativeRequest = CapacitorHttp.get({
       url: endpoint,
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-      },
-      data: `data=${encodeURIComponent(query)}`,
-      connectTimeout: 7000,
+      params: { data: query },
+      headers: { Accept: 'application/json' },
+      connectTimeout: 8000,
       readTimeout: REQUEST_TIMEOUT_MS,
     });
     const response = await Promise.race([nativeRequest, timeoutPromise(REQUEST_TIMEOUT_MS)]);
     if (response.status < 200 || response.status >= 300) throw new Error(`Overpass ${response.status}`);
-    return typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+    const data = typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+    if (!data || !Array.isArray(data.elements)) throw new Error('Respuesta Overpass no válida');
+    return data;
   }
-
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
-      body: `data=${encodeURIComponent(query)}`,
-      signal: controller.signal,
-    });
+    const url = `${endpoint}?data=${encodeURIComponent(query)}`;
+    const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: controller.signal });
     if (!response.ok) throw new Error(`Overpass ${response.status}`);
     return await response.json();
   } finally { clearTimeout(timeout); }
@@ -90,17 +74,12 @@ function mapElements(data: any, center: Coordinates): Restaurant[] {
     const amenity = tags.amenity || tags.shop || 'restaurant';
     const cuisine = tags.cuisine?.split(';').filter(Boolean) || [];
     const photoUrls = photosFromTags(tags);
-    return {
-      id: `osm_${element.type}_${element.id}`, name,
-      address: addressFromTags(tags), location,
-      distanceMeters: calculateDistance(center, location),
-      phoneNumber: tags.phone || tags['contact:phone'], websiteUri: websiteFromTags(tags),
-      photoUrl: photoUrls[0], photoUrls, types: [amenity, ...cuisine],
+    return { id: `osm_${element.type}_${element.id}`, name, address: addressFromTags(tags), location,
+      distanceMeters: calculateDistance(center, location), phoneNumber: tags.phone || tags['contact:phone'],
+      websiteUri: websiteFromTags(tags), photoUrl: photoUrls[0], photoUrls, types: [amenity, ...cuisine],
       primaryType: amenity === 'cafe' ? 'Cafetería' : amenity === 'bar' || amenity === 'pub' ? 'Bar' : amenity === 'fast_food' ? 'Comida rápida' : amenity === 'bakery' ? 'Panadería' : 'Restaurante',
-      openingHoursSummary: tags.opening_hours,
-    };
-  }).filter((item: Restaurant | null): item is Restaurant => item !== null)
-    .sort((a, b) => (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0));
+      openingHoursSummary: tags.opening_hours };
+  }).filter((item: Restaurant | null): item is Restaurant => item !== null).sort((a, b) => (a.distanceMeters ?? 0) - (b.distanceMeters ?? 0));
 }
 
 async function firstUsefulResult(query: string, center: Coordinates): Promise<Restaurant[]> {
@@ -110,15 +89,13 @@ async function firstUsefulResult(query: string, center: Coordinates): Promise<Re
     if (!restaurants.length) throw new Error('Sin resultados');
     return restaurants;
   });
-  try {
-    return await Promise.race([Promise.any(attempts), timeoutPromise(TOTAL_TIMEOUT_MS)]);
-  } catch (error) {
+  try { return await Promise.race([Promise.any(attempts), timeoutPromise(TOTAL_TIMEOUT_MS)]); }
+  catch (error) {
     console.warn('Servidores Overpass no disponibles:', error);
     throw new Error('No se pudo conectar con los servidores gratuitos de restaurantes. Comprueba tu conexión e inténtalo de nuevo.');
   }
 }
 
-/** Busca locales cercanos con OpenStreetMap/Overpass sin API de pago. */
 export async function fetchNearbyRestaurants(center: Coordinates, radiusMeters: number = 2500): Promise<{ restaurants: Restaurant[]; source: 'google' | 'fallback' }> {
   const radius = Math.min(Math.max(Math.round(radiusMeters), 500), 10000);
   const query = `[out:json][timeout:12];(nwr(around:${radius},${center.lat},${center.lng})[amenity~"^(restaurant|cafe|fast_food|bar|pub|food_court)$"];nwr(around:${radius},${center.lat},${center.lng})[shop="bakery"];);out center tags;`;
