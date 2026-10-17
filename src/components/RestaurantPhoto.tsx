@@ -14,9 +14,11 @@ interface Props {
 
 export function RestaurantPhoto({ restaurant, className = '' }: Props) {
   const [imageFailed, setImageFailed] = useState(false);
+  const [retryUrl, setRetryUrl] = useState<string | null>(null);
 
   useEffect(() => {
     setImageFailed(false);
+    setRetryUrl(null);
   }, [restaurant.id, restaurant.photoUrl]);
 
   const mapsQuery = restaurant.location
@@ -28,12 +30,24 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
       {restaurant.photoUrl && !imageFailed ? (
         <>
           <img
-            src={restaurant.photoUrl}
+            src={retryUrl || restaurant.photoUrl}
             alt={`Fotografía de ${restaurant.name}`}
             className="w-full h-full object-cover"
             loading="lazy"
             referrerPolicy="no-referrer"
-            onError={() => setImageFailed(true)}
+            onError={() => {
+              // Try a fresh request once for stable, non-Google image URLs.
+              // Never reuse or mutate short-lived Google Places photoUri URLs.
+              if (!retryUrl && restaurant.photoUrl && !/googleapis\.com|googleusercontent\.com|google\.com\/maps/i.test(restaurant.photoUrl)) {
+                try {
+                  const refreshed = new URL(restaurant.photoUrl);
+                  refreshed.searchParams.set('_photo_retry', String(Date.now()));
+                  setRetryUrl(refreshed.toString());
+                  return;
+                } catch { /* invalid URL */ }
+              }
+              setImageFailed(true);
+            }}
           />
         </>
       ) : (
