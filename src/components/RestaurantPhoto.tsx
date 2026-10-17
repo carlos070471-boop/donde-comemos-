@@ -1,6 +1,6 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { ImageOff } from 'lucide-react';
-import { fetchRestaurantPhoto, PlacePhoto } from '../services/photoService';
+
 
 interface Props {
   restaurant: {
@@ -13,106 +13,34 @@ interface Props {
 }
 
 export function RestaurantPhoto({ restaurant, className = '' }: Props) {
-  const element = useRef<HTMLDivElement>(null);
-  const [visible, setVisible] = useState(false);
-  const [photo, setPhoto] = useState<PlacePhoto | null>(null);
-  const [errorMessage, setErrorMessage] = useState('');
-  const [status, setStatus] = useState<'loading' | 'ready' | 'missing' | 'error'>('loading');
-  const [usingFallback, setUsingFallback] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
-    if (!element.current) return;
-    if (typeof IntersectionObserver === 'undefined') { setVisible(true); return; }
-    const observer = new IntersectionObserver(entries => {
-      if (entries.some(entry => entry.isIntersecting)) {
-        setVisible(true);
-        observer.disconnect();
-      }
-    }, { rootMargin: '100px' });
-    observer.observe(element.current);
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!visible) return;
-    let active = true;
-    setErrorMessage('');
-    setUsingFallback(false);
-
-    if (restaurant.photoUrl) {
-      setPhoto({ url: restaurant.photoUrl, authors: [] });
-      setStatus('ready');
-      return () => { active = false; };
-    }
-
-    setPhoto(null);
-    setStatus('loading');
-    fetchRestaurantPhoto(restaurant).then(result => {
-      if (!active) return;
-      setPhoto(result);
-      setUsingFallback(true);
-      setStatus(result ? 'ready' : 'missing');
-    }).catch(error => {
-      if (active) {
-        setStatus('error');
-        setErrorMessage(error instanceof Error ? error.message : 'Error de conexión');
-      }
-    });
-    return () => { active = false; };
-  }, [restaurant.id, restaurant.name, restaurant.photoUrl, restaurant.location?.lat, restaurant.location?.lng, visible]);
-
-  const handleImageError = async () => {
-    if (!usingFallback) {
-      setStatus('loading');
-      setErrorMessage('');
-      try {
-        const fallback = await fetchRestaurantPhoto(restaurant);
-        if (fallback) {
-          setUsingFallback(true);
-          setPhoto(fallback);
-          setStatus('ready');
-          return;
-        }
-      } catch (error) {
-        setErrorMessage(error instanceof Error ? error.message : 'Error de conexión');
-      }
-    }
-    setStatus('error');
-    setErrorMessage(current => current || 'Android no pudo mostrar esta fotografía');
-  };
+    setImageFailed(false);
+  }, [restaurant.id, restaurant.photoUrl]);
 
   const mapsQuery = restaurant.location
     ? `${restaurant.name} ${restaurant.location.lat},${restaurant.location.lng}`
     : restaurant.name;
 
   return (
-    <div ref={element} className={`relative overflow-hidden bg-stone-100 ${className}`}>
-      {photo && status === 'ready' ? (
+    <div className={`relative overflow-hidden bg-stone-100 ${className}`}>
+      {restaurant.photoUrl && !imageFailed ? (
         <>
           <img
-            src={photo.url}
+            src={restaurant.photoUrl}
             alt={`Fotografía de ${restaurant.name}`}
             className="w-full h-full object-cover"
             loading="lazy"
             referrerPolicy="no-referrer"
-            onError={handleImageError}
+            onError={() => setImageFailed(true)}
           />
-          <div className="absolute z-20 bottom-0 inset-x-0 px-1 py-0.5 bg-black/70 text-white text-[9px] leading-tight">
-            Google Maps{photo.authors.map((author, index) => (
-              <React.Fragment key={index}> · {author.uri ? (
-                <a href={author.uri} target="_blank" rel="noopener noreferrer"
-                  onClick={event => event.stopPropagation()}>{author.displayName}</a>
-              ) : author.displayName}</React.Fragment>
-            ))}
-          </div>
         </>
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center gap-1 p-2 text-center text-stone-500">
           <ImageOff className="w-6 h-6" />
-          <span className="text-[10px]">{status === 'loading' ? 'Cargando foto del local…' :
-            status === 'missing' ? 'El local no tiene fotos disponibles' : 'No se pudo cargar la foto'}</span>
-          {status === 'error' && errorMessage && <span className="text-[9px]">{errorMessage}</span>}
-          {status !== 'loading' && <a className="text-[10px] underline text-amber-700"
+          <span className="text-[10px]">Fotografía no disponible en fuentes abiertas</span>
+          {<a className="text-[10px] underline text-amber-700"
             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`}
             target="_blank" rel="noopener noreferrer" onClick={event => event.stopPropagation()}>
             Ver en Google Maps
