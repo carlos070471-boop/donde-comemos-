@@ -3,12 +3,14 @@ import { Coordinates, Restaurant } from '../types/restaurant';
 import { calculateDistance } from '../utils/distance';
 
 const OVERPASS_ENDPOINTS = [
-  'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
+  'https://overpass-api.de/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
 ];
 const CACHE_KEY = 'donde_comemos_last_restaurants';
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+const REQUEST_TIMEOUT_MS = 9000;
+const TOTAL_TIMEOUT_MS = 20000;
 
 function addressFromTags(tags: Record<string, string>): string {
   const street = [tags['addr:street'], tags['addr:housenumber']].filter(Boolean).join(' ');
@@ -30,50 +32,45 @@ function normalizePhoto(value?: string): string | undefined {
 }
 
 function photosFromTags(tags: Record<string, string>): string[] {
-  const candidates = [tags.image, tags.wikimedia_commons]
+  return [...new Set([tags.image, tags.wikimedia_commons]
     .flatMap(value => value ? value.split(';') : [])
     .map(normalizePhoto)
-    .filter((url): url is string => Boolean(url));
-  return [...new Set(candidates)];
+    .filter((url): url is string => Boolean(url)))];
+}
+
+function timeoutPromise(ms: number): Promise<never> {
+  return new Promise((_, reject) => setTimeout(() => reject(new Error('Tiempo de espera agotado')), ms));
 }
 
 async function queryOverpass(endpoint: string, query: string): Promise<any> {
-  // On Android use Capacitor's native HTTP stack. This bypasses WebView CORS,
-  // which can block otherwise valid requests to public Overpass instances.
   if (Capacitor.isNativePlatform()) {
-    const response = await CapacitorHttp.post({
+    const nativeRequest = CapacitorHttp.post({
       url: endpoint,
       headers: {
         Accept: 'application/json',
         'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
       },
       data: `data=${encodeURIComponent(query)}`,
-      connectTimeout: 15000,
-      readTimeout: 25000,
+      connectTimeout: 7000,
+      readTimeout: REQUEST_TIMEOUT_MS,
     });
-    if (response.status < 200 || response.status >= 300) {
-      throw new Error(`Overpass ${response.status}`);
-    }
+    const response = await Promise.race([nativeRequest, timeoutPromise(REQUEST_TIMEOUT_MS)]);
+    if (response.status < 200 || response.status >= 300) throw new Error(`Overpass ${response.status}`);
     return typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 22000);
+  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   try {
     const response = await fetch(endpoint, {
       method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-      },
+      headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
       body: `data=${encodeURIComponent(query)}`,
       signal: controller.signal,
     });
     if (!response.ok) throw new Error(`Overpass ${response.status}`);
     return await response.json();
-  } finally {
-    clearTimeout(timeout);
-  }
+  } finally { clearTimeout(timeout); }
 }
 
 function mapElements(data: any, center: Coordinates): Restaurant[] {
@@ -94,16 +91,11 @@ function mapElements(data: any, center: Coordinates): Restaurant[] {
     const cuisine = tags.cuisine?.split(';').filter(Boolean) || [];
     const photoUrls = photosFromTags(tags);
     return {
-      id: `osm_${element.type}_${element.id}`,
-      name,
-      address: addressFromTags(tags),
-      location,
+      id: `osm_${element.type}_${element.id}`, name,
+      address: addressFromTags(tags), location,
       distanceMeters: calculateDistance(center, location),
-      phoneNumber: tags.phone || tags['contact:phone'],
-      websiteUri: websiteFromTags(tags),
-      photoUrl: photoUrls[0],
-      photoUrls,
-      types: [amenity, ...cuisine],
+      phoneNumber: tags.phone || tags['contact:phone'], websiteUri: websiteFromTags(tags),
+      photoUrl: photoUrls[0], photoUrls, types: [amenity, ...cuisine],
       primaryType: amenity === 'cafe' ? 'Cafetería' : amenity === 'bar' || amenity === 'pub' ? 'Bar' : amenity === 'fast_food' ? 'Comida rápida' : amenity === 'bakery' ? 'Panadería' : 'Restaurante',
       openingHoursSummary: tags.opening_hours,
     };
@@ -112,43 +104,36 @@ function mapElements(data: any, center: Coordinates): Restaurant[] {
 }
 
 async function firstUsefulResult(query: string, center: Coordinates): Promise<Restaurant[]> {
-  let lastError: unknown;
-  for (const endpoint of OVERPASS_ENDPOINTS) {
-    try {
-      const data = await queryOverpass(endpoint, query);
-      const restaurants = mapElements(data, center);
-      if (restaurants.length) return restaurants;
-      lastError = new Error('Sin resultados');
-    } catch (error) {
-      lastError = error;
-      console.warn('Servidor Overpass no disponible:', endpoint, error);
-    }
+  const attempts = OVERPASS_ENDPOINTS.map(async endpoint => {
+    const data = await queryOverpass(endpoint, query);
+    const restaurants = mapElements(data, center);
+    if (!restaurants.length) throw new Error('Sin resultados');
+    return restaurants;
+  });
+  try {
+    return await Promise.race([Promise.any(attempts), timeoutPromise(TOTAL_TIMEOUT_MS)]);
+  } catch (error) {
+    console.warn('Servidores Overpass no disponibles:', error);
+    throw new Error('No se pudo conectar con los servidores gratuitos de restaurantes. Comprueba tu conexión e inténtalo de nuevo.');
   }
-  console.warn('Todos los servidores Overpass fallaron:', lastError);
-  throw new Error('No se pudo conectar con los servidores gratuitos de restaurantes. Comprueba tu conexión e inténtalo de nuevo.');
 }
 
 /** Busca locales cercanos con OpenStreetMap/Overpass sin API de pago. */
 export async function fetchNearbyRestaurants(center: Coordinates, radiusMeters: number = 2500): Promise<{ restaurants: Restaurant[]; source: 'google' | 'fallback' }> {
   const radius = Math.min(Math.max(Math.round(radiusMeters), 500), 10000);
-  const query = `[out:json][timeout:18];(nwr(around:${radius},${center.lat},${center.lng})[amenity~"^(restaurant|cafe|fast_food|bar|pub|food_court)$"];nwr(around:${radius},${center.lat},${center.lng})[shop="bakery"];);out center tags;`;
+  const query = `[out:json][timeout:12];(nwr(around:${radius},${center.lat},${center.lng})[amenity~"^(restaurant|cafe|fast_food|bar|pub|food_court)$"];nwr(around:${radius},${center.lat},${center.lng})[shop="bakery"];);out center tags;`;
   try {
     const restaurants = await firstUsefulResult(query, center);
-    try {
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ center, restaurants, savedAt: Date.now() }));
-    } catch { /* storage unavailable */ }
+    try { localStorage.setItem(CACHE_KEY, JSON.stringify({ center, restaurants, savedAt: Date.now() })); } catch {}
     return { restaurants, source: 'fallback' };
   } catch (error) {
     try {
       const cached = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
       const age = Date.now() - Number(cached?.savedAt || 0);
       if (cached?.restaurants?.length && age <= CACHE_MAX_AGE_MS && calculateDistance(center, cached.center) < 10000) {
-        return {
-          restaurants: cached.restaurants.map((r: Restaurant) => ({ ...r, distanceMeters: calculateDistance(center, r.location) })),
-          source: 'fallback',
-        };
+        return { restaurants: cached.restaurants.map((r: Restaurant) => ({ ...r, distanceMeters: calculateDistance(center, r.location) })), source: 'fallback' };
       }
-    } catch { /* storage unavailable */ }
+    } catch {}
     throw error;
   }
 }
