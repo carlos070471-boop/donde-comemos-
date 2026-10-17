@@ -52,6 +52,7 @@ function MainApp() {
   // Restaurants state
   const [restaurants, setRestaurants] = useState<Restaurant[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [restaurantError, setRestaurantError] = useState<string | null>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
 
   // Favorites hook
@@ -120,6 +121,7 @@ function MainApp() {
 
     async function loadRestaurants() {
       setIsLoading(true);
+      setRestaurantError(null);
       try {
         const result = await fetchNearbyRestaurants(
           userCoords,
@@ -130,6 +132,7 @@ function MainApp() {
         }
       } catch (err) {
         console.error('Error fetching restaurants:', err);
+        if (!isCancelled) setRestaurantError(err instanceof Error ? err.message : 'Error al buscar restaurantes');
       } finally {
         if (!isCancelled) {
           setIsLoading(false);
@@ -382,7 +385,8 @@ function MainApp() {
                   )}
 
                   {/* Empty State */}
-                  {!isLoading && filteredRestaurants.length === 0 && (
+                  {!isLoading && restaurantError && <p role="alert" className="p-4 rounded-xl bg-amber-50 text-amber-900">{restaurantError}</p>}
+                  {!isLoading && filteredRestaurants.length === 0 && !restaurantError && (
                     <div className="bg-white rounded-3xl p-8 sm:p-12 text-center border border-stone-200/90 shadow-xs">
                       <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center mb-3">
                         <UtensilsCrossed className="w-7 h-7" />
