@@ -4,7 +4,7 @@ name: Compilar APK Android
 on:
   workflow_dispatch:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "fix/photo-recovery" ]
   pull_request:
     branches: [ "main", "master" ]
 
@@ -53,4 +53,3 @@ jobs:
           name: donde-comemos-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-
