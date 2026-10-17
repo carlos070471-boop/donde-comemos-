@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { ImageOff } from 'lucide-react';
+import { fetchRestaurantPhoto } from '../services/photoService';
 
 
 interface Props {
@@ -15,10 +16,12 @@ interface Props {
 export function RestaurantPhoto({ restaurant, className = '' }: Props) {
   const [imageFailed, setImageFailed] = useState(false);
   const [retryUrl, setRetryUrl] = useState<string | null>(null);
+  const [googleRefreshAttempted, setGoogleRefreshAttempted] = useState(false);
 
   useEffect(() => {
     setImageFailed(false);
     setRetryUrl(null);
+    setGoogleRefreshAttempted(false);
   }, [restaurant.id, restaurant.photoUrl]);
 
   const mapsQuery = restaurant.location
@@ -35,7 +38,21 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
             className="w-full h-full object-cover"
             loading="lazy"
             referrerPolicy="no-referrer"
-            onError={() => {
+            onError={async () => {
+              // Google Places requests may be billable: refresh only after explicit opt-in.
+              const isGooglePhoto = /googleapis\.com|googleusercontent\.com|google\.com\/maps/i.test(restaurant.photoUrl || '');
+              if (isGooglePhoto && !googleRefreshAttempted && import.meta.env.VITE_ENABLE_GOOGLE_PHOTO_REFRESH === 'true') {
+                setGoogleRefreshAttempted(true);
+                try {
+                  const photo = await fetchRestaurantPhoto(restaurant);
+                  if (photo?.url && photo.url !== (retryUrl || restaurant.photoUrl)) {
+                    setRetryUrl(photo.url);
+                    return;
+                  }
+                } catch { /* use existing fallback */ }
+                setImageFailed(true);
+                return;
+              }
               // Try a fresh request once for stable, non-Google image URLs.
               // Never reuse or mutate short-lived Google Places photoUri URLs.
               if (!retryUrl && restaurant.photoUrl && !/googleapis\.com|googleusercontent\.com|google\.com\/maps/i.test(restaurant.photoUrl)) {
