@@ -1,14 +1,11 @@
+import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { Coordinates, Restaurant } from '../types/restaurant';
 import { calculateDistance } from '../utils/distance';
 
-// Free public Overpass instances with global coverage. POST is used because it is
-// more reliable from Android WebView than very long GET URLs and avoids recent
-// referrer/origin restrictions seen on some public instances.
 const OVERPASS_ENDPOINTS = [
   'https://overpass-api.de/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
-  'https://maps.mail.ru/osm/tools/overpass/api/interpreter',
 ];
 const CACHE_KEY = 'donde_comemos_last_restaurants';
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -41,6 +38,25 @@ function photosFromTags(tags: Record<string, string>): string[] {
 }
 
 async function queryOverpass(endpoint: string, query: string): Promise<any> {
+  // On Android use Capacitor's native HTTP stack. This bypasses WebView CORS,
+  // which can block otherwise valid requests to public Overpass instances.
+  if (Capacitor.isNativePlatform()) {
+    const response = await CapacitorHttp.post({
+      url: endpoint,
+      headers: {
+        Accept: 'application/json',
+        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+      },
+      data: `data=${encodeURIComponent(query)}`,
+      connectTimeout: 15000,
+      readTimeout: 25000,
+    });
+    if (response.status < 200 || response.status >= 300) {
+      throw new Error(`Overpass ${response.status}`);
+    }
+    return typeof response.data === 'string' ? JSON.parse(response.data) : response.data;
+  }
+
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 22000);
   try {
@@ -96,8 +112,6 @@ function mapElements(data: any, center: Coordinates): Restaurant[] {
 }
 
 async function firstUsefulResult(query: string, center: Coordinates): Promise<Restaurant[]> {
-  // Try sequentially. This is kinder to the free community servers and avoids
-  // firing four identical requests for every location update.
   let lastError: unknown;
   for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
