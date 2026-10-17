@@ -15,6 +15,8 @@ import {
   Check,
   FileEdit,
   Utensils,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 import { Restaurant } from '../types/restaurant';
@@ -41,6 +43,7 @@ export const RestaurantDetailModal: React.FC<RestaurantDetailModalProps> = ({
   onViewOnMap,
 }) => {
   const [copiedAddress, setCopiedAddress] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
   const [noteText, setNoteText] = useState('');
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [noteSaved, setNoteSaved] = useState(false);
@@ -50,11 +53,14 @@ export const RestaurantDetailModal: React.FC<RestaurantDetailModalProps> = ({
     setIsEditingNote(false);
     setNoteSaved(false);
     setCopiedAddress(false);
+    setPhotoIndex(0);
   }, [restaurant?.id, restaurant?.notes, restaurant?.photoUrl]);
 
   if (!restaurant) return null;
 
   const currentRestaurant = restaurant;
+  const gallery = [...new Set([restaurant.photoUrl, ...(restaurant.photoUrls || [])].filter((url): url is string => Boolean(url)))];
+  const activePhoto = gallery[photoIndex % Math.max(1, gallery.length)];
 
   const priceString = restaurant.priceLevel
     ? '€'.repeat(restaurant.priceLevel)
@@ -106,7 +112,14 @@ export const RestaurantDetailModal: React.FC<RestaurantDetailModalProps> = ({
         {/* Fotografía real */}
         <div className="relative h-56 sm:h-64 w-full bg-stone-200 shrink-0">
 
-          <RestaurantPhoto restaurant={restaurant} className="w-full h-full" />
+          <RestaurantPhoto restaurant={{ ...restaurant, photoUrl: activePhoto }} className="w-full h-full" />
+          {gallery.length > 1 && (
+            <div className="absolute bottom-20 right-4 flex items-center gap-2 z-10">
+              <button type="button" aria-label="Foto anterior" onClick={() => setPhotoIndex(index => (index - 1 + gallery.length) % gallery.length)} className="rounded-full bg-black/60 p-2 text-white"><ChevronLeft className="w-5 h-5" /></button>
+              <span className="text-xs text-white bg-black/60 rounded px-2 py-1">{photoIndex + 1}/{gallery.length}</span>
+              <button type="button" aria-label="Foto siguiente" onClick={() => setPhotoIndex(index => (index + 1) % gallery.length)} className="rounded-full bg-black/60 p-2 text-white"><ChevronRight className="w-5 h-5" /></button>
+            </div>
+          )}
 
           <div className="absolute inset-0 bg-gradient-to-t from-stone-950/80 via-transparent to-transparent pointer-events-none" />
 
