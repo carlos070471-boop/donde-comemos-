@@ -16,6 +16,8 @@ export interface Restaurant {
   phoneNumber?: string;
   websiteUri?: string;
   photoUrl?: string;
+  /** Verified, freely licensed image URLs; may be empty. */
+  photoUrls?: string[];
   types?: string[];
   primaryType?: string;
   notes?: string;
