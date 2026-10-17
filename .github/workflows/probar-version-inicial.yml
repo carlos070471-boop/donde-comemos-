@@ -1,0 +1,8 @@
+name: Probar APK versión inicial
+on:
+  push:
+    branches: [restaurar-version-inicial-pruebas]
+  workflow_dispatch:
+jobs:
+  build:
+    uses: ./.github/workflows/main444.yml
