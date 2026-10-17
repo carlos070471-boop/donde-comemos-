@@ -2,8 +2,10 @@ import { Coordinates, Restaurant } from '../types/restaurant';
 import { calculateDistance } from '../utils/distance';
 
 const OVERPASS_ENDPOINTS = [
+  'https://overpass.nchc.org.tw/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
   'https://overpass-api.de/api/interpreter',
+  'https://overpass.nchc.org.tw/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
 ];
 
@@ -29,15 +31,11 @@ function photoFromTags(tags: Record<string, string>): string | undefined {
 
 async function queryOverpass(endpoint: string, query: string): Promise<any> {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 6500);
+  const timeout = setTimeout(() => controller.abort(), 18000);
   try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-      },
-      body: `data=${encodeURIComponent(query)}`,
+    const response = await fetch(`${endpoint}?data=${encodeURIComponent(query)}`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
       signal: controller.signal,
     });
     if (!response.ok) throw new Error(`Overpass ${response.status}`);
@@ -98,7 +96,7 @@ async function firstUsefulResult(query: string, center: Coordinates): Promise<Re
   try {
     return await Promise.any(attempts);
   } catch {
-    return [];
+    throw new Error('No se pudo conectar con los servidores gratuitos de restaurantes. Comprueba tu conexión e inténtalo de nuevo.');
   }
 }
 
@@ -108,8 +106,19 @@ export async function fetchNearbyRestaurants(
   radiusMeters: number = 2500
 ): Promise<{ restaurants: Restaurant[]; source: 'google' | 'fallback' }> {
   const radius = Math.min(Math.max(Math.round(radiusMeters), 500), 10000);
-  const query = `[out:json][timeout:6];(nwr(around:${radius},${center.lat},${center.lng})[amenity~"^(restaurant|cafe|fast_food|bar|pub|food_court)$"];nwr(around:${radius},${center.lat},${center.lng})[shop="bakery"];);out center tags;`;
+  const query = `[out:json][timeout:15];(nwr(around:${radius},${center.lat},${center.lng})[amenity~"^(restaurant|cafe|fast_food|bar|pub|food_court)$"];nwr(around:${radius},${center.lat},${center.lng})[shop="bakery"];);out center tags;`;
 
-  const restaurants = await firstUsefulResult(query, center);
-  return { restaurants, source: 'fallback' };
+  try {
+    const restaurants = await firstUsefulResult(query, center);
+    try { localStorage.setItem('donde_comemos_last_restaurants', JSON.stringify({ center, restaurants, savedAt: Date.now() })); } catch { /* storage unavailable */ }
+    return { restaurants, source: 'fallback' };
+  } catch (error) {
+    try {
+      const cached = JSON.parse(localStorage.getItem('donde_comemos_last_restaurants') || 'null');
+      if (cached?.restaurants?.length && calculateDistance(center, cached.center) < 10000) {
+        return { restaurants: cached.restaurants.map((r: Restaurant) => ({ ...r, distanceMeters: calculateDistance(center, r.location) })), source: 'fallback' };
+      }
+    } catch { /* storage unavailable */ }
+    throw error;
+  }
 }
