@@ -21,7 +21,7 @@ export const Header: React.FC<HeaderProps> = ({
   onChangeLocationClick,
 }) => {
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-xs">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200 shadow-xs pt-[38px]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-18">
           {/* Logo & Brand */}
@@ -62,61 +62,17 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Navigation Controls */}
           <div className="flex items-center gap-1 sm:gap-2">
-            {/* View switcher tabs */}
             <nav className="flex items-center bg-stone-100 p-1 rounded-xl border border-stone-200/70">
-              <button
-                onClick={() => setActiveTab('list')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
-                  activeTab === 'list'
-                    ? 'bg-white text-stone-900 shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900'
-                }`}
-              >
-                <List className="w-4 h-4" />
-                <span className="hidden sm:inline">Lista</span>
+              <button onClick={() => setActiveTab('list')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all ${activeTab === 'list' ? 'bg-white text-stone-900 shadow-xs' : 'text-stone-600 hover:text-stone-900'}`}>
+                <List className="w-4 h-4" /><span className="hidden sm:inline">Lista</span>
               </button>
-
-              <button
-                onClick={() => setActiveTab('map')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all ${
-                  activeTab === 'map'
-                    ? 'bg-white text-stone-900 shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900'
-                }`}
-              >
-                <Map className="w-4 h-4" />
-                <span className="hidden sm:inline">Mapa</span>
+              <button onClick={() => setActiveTab('map')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all ${activeTab === 'map' ? 'bg-white text-stone-900 shadow-xs' : 'text-stone-600 hover:text-stone-900'}`}>
+                <Map className="w-4 h-4" /><span className="hidden sm:inline">Mapa</span>
               </button>
-
-              <button
-                onClick={() => setActiveTab('favorites')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all relative ${
-                  activeTab === 'favorites'
-                    ? 'bg-amber-500 text-white shadow-xs'
-                    : 'text-stone-600 hover:text-stone-900'
-                }`}
-              >
-                <Heart
-                  className={`w-4 h-4 ${
-                    activeTab === 'favorites'
-                      ? 'fill-white text-white'
-                      : favoritesCount > 0
-                      ? 'text-rose-500 fill-rose-500'
-                      : ''
-                  }`}
-                />
+              <button onClick={() => setActiveTab('favorites')} className={`flex items-center gap-1.5 px-3 py-1.5 text-xs sm:text-sm font-semibold rounded-lg transition-all relative ${activeTab === 'favorites' ? 'bg-amber-500 text-white shadow-xs' : 'text-stone-600 hover:text-stone-900'}`}>
+                <Heart className={`w-4 h-4 ${activeTab === 'favorites' ? 'fill-white text-white' : favoritesCount > 0 ? 'text-rose-500 fill-rose-500' : ''}`} />
                 <span className="hidden sm:inline">Favoritos</span>
-                {favoritesCount > 0 && (
-                  <span
-                    className={`inline-flex items-center justify-center text-[10px] font-bold px-1.5 py-0.2 rounded-full min-w-4 text-center ${
-                      activeTab === 'favorites'
-                        ? 'bg-white text-amber-600'
-                        : 'bg-rose-500 text-white'
-                    }`}
-                  >
-                    {favoritesCount}
-                  </span>
-                )}
+                {favoritesCount > 0 && <span className={`inline-flex items-center justify-center text-[10px] font-bold px-1.5 py-0.2 rounded-full min-w-4 text-center ${activeTab === 'favorites' ? 'bg-white text-amber-600' : 'bg-rose-500 text-white'}`}>{favoritesCount}</span>}
               </button>
             </nav>
           </div>
