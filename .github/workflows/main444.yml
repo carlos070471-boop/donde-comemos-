@@ -1,56 +1,50 @@
-
 name: Compilar APK Android
-
 on:
   workflow_dispatch:
   push:
-    branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
-
+    branches: [ "base-apk-buena-admob" ]
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
       - name: Copiar repositorio
         uses: actions/checkout@v4
-
       - name: Preparar Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
-
       - name: Preparar Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
-
       - name: Instalar dependencias
         run: npm install --legacy-peer-deps
-
       - name: Crear aplicación web
         run: npm run build
-
       - name: Crear proyecto Android con Capacitor
         run: npx cap add android
-
-      - name: Añadir permisos de ubicación
+      - name: Configurar Android
         run: |
-          sed -i '/<application/i\    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' android/app/src/main/AndroidManifest.xml
-
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('android/app/src/main/AndroidManifest.xml')
+          s=p.read_text()
+          if 'ACCESS_COARSE_LOCATION' not in s:
+              s=s.replace('<application','    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n\n    <application',1)
+          start=s.index('<application'); end=s.index('>',start)+1
+          meta='\n        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713" />'
+          if 'com.google.android.gms.ads.APPLICATION_ID' not in s: s=s[:end]+meta+s[end:]
+          p.write_text(s)
+          PY
       - name: Sincronizar aplicación y plugins Android
         run: npx cap sync android
-
       - name: Compilar APK de depuración
         working-directory: android
         run: chmod +x gradlew && ./gradlew assembleDebug
-
       - name: Guardar APK como artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: donde-comemos-apk
+          name: donde-comemos-base-buena-admob
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-
