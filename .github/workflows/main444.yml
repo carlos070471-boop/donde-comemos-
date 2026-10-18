@@ -1,10 +1,9 @@
-
 name: Compilar APK Android
 
 on:
   workflow_dispatch:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "master", "prueba-banner-admob" ]
   pull_request:
     branches: [ "main", "master" ]
 
@@ -36,9 +35,10 @@ jobs:
       - name: Crear proyecto Android con Capacitor
         run: npx cap add android
 
-      - name: Añadir permisos de ubicación
+      - name: Añadir permisos de ubicación y App ID AdMob de prueba
         run: |
           sed -i '/<application/i\    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' android/app/src/main/AndroidManifest.xml
+          sed -i '/<application/a\        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713" />' android/app/src/main/AndroidManifest.xml
 
       - name: Sincronizar aplicación y plugins Android
         run: npx cap sync android
@@ -50,7 +50,6 @@ jobs:
       - name: Guardar APK como artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: donde-comemos-apk
+          name: donde-comemos-banner-prueba-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
-
