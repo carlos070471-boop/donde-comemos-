@@ -110,6 +110,15 @@ export async function fetchNearbyRestaurants(
 
   try {
     const restaurants = await firstUsefulResult(query, center);
+    // Keep known restaurant photos when the search radius changes.
+    try {
+      const cached = JSON.parse(localStorage.getItem('donde_comemos_last_restaurants') || 'null');
+      const photos = new Map<string, string>(
+        (cached?.restaurants || []).filter((r: Restaurant) => r.photoUrl)
+          .map((r: Restaurant) => [r.id, r.photoUrl as string])
+      );
+      restaurants.forEach(r => { if (!r.photoUrl) r.photoUrl = photos.get(r.id); });
+    } catch { /* storage unavailable */ }
     try { localStorage.setItem('donde_comemos_last_restaurants', JSON.stringify({ center, restaurants, savedAt: Date.now() })); } catch { /* storage unavailable */ }
     return { restaurants, source: 'fallback' };
   } catch (error) {
