@@ -37,8 +37,20 @@ jobs:
 
       - name: Añadir permisos de ubicación y App ID AdMob de prueba
         run: |
-          sed -i '/<application/i\    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />' android/app/src/main/AndroidManifest.xml
-          sed -i '/<application/a\        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713" />' android/app/src/main/AndroidManifest.xml
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/src/main/AndroidManifest.xml')
+          s = p.read_text()
+          if 'android.permission.ACCESS_COARSE_LOCATION' not in s:
+              s = s.replace('<application', '    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n\n    <application', 1)
+          marker = '<application'
+          start = s.index(marker)
+          end = s.index('>', start) + 1
+          meta = '\n        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="ca-app-pub-3940256099942544~3347511713" />'
+          if 'com.google.android.gms.ads.APPLICATION_ID' not in s:
+              s = s[:end] + meta + s[end:]
+          p.write_text(s)
+          PY
 
       - name: Sincronizar aplicación y plugins Android
         run: npx cap sync android
