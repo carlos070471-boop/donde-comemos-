@@ -55,6 +55,8 @@ function MainApp() {
   const [restaurantError, setRestaurantError] = useState<string | null>(null);
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
 
+  const [visibleCount, setVisibleCount] = useState(20);
+
   // Favorites hook
   const {
     favorites,
@@ -251,6 +253,11 @@ function MainApp() {
       });
   }, [restaurants, filters]);
 
+  // Start each changed search or filter at the first page.
+  useEffect(() => {
+    setVisibleCount(20);
+  }, [filteredRestaurants]);
+
   // Handle switching to map view and focusing a restaurant
   const handleViewOnMap = (restaurant: Restaurant) => {
     setSelectedRestaurant(restaurant);
@@ -416,7 +423,7 @@ function MainApp() {
 
                   {/* List of Restaurant Cards */}
                   {!isLoading &&
-                    filteredRestaurants.map((restaurant) => (
+                    filteredRestaurants.slice(0, visibleCount).map((restaurant) => (
                       <RestaurantCard
                         key={restaurant.id}
                         restaurant={restaurant}
@@ -425,6 +432,15 @@ function MainApp() {
                         onSelect={(r) => setSelectedRestaurant(r)}
                       />
                     ))}
+                  {!isLoading && visibleCount < filteredRestaurants.length && (
+                    <button
+                      type="button"
+                      onClick={() => setVisibleCount((count) => count + 20)}
+                      className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-semibold transition-colors"
+                    >
+                      Más
+                    </button>
+                  )}
                 </div>
 
                 {/* Right Column (Desktop sticky map) */}
