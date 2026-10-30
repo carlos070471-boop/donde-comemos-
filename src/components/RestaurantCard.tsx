@@ -175,6 +175,9 @@ export const RestaurantCard: React.FC<
 
             {/* ABIERTO O CERRADO */}
 
+            {restaurant.isOpenNow === undefined && (
+              <span className="text-[11px] text-stone-500">Horario no confirmado</span>
+            )}
             {restaurant.isOpenNow !== undefined && (
               <span
                 className={`
