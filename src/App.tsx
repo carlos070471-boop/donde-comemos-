@@ -14,6 +14,7 @@ import {
 import { Coordinates, FilterOptions, Restaurant } from './types/restaurant';
 import { useFavorites } from './hooks/useFavorites';
 import { fetchNearbyRestaurants } from './services/placesService';
+import { getOpenNow } from './utils/openingHours';
 import { Header } from './components/Header';
 import { FilterBar } from './components/FilterBar';
 import { RestaurantCard } from './components/RestaurantCard';
@@ -56,6 +57,17 @@ function MainApp() {
   const [selectedRestaurant, setSelectedRestaurant] = useState<Restaurant | null>(null);
 
   const [visibleCount, setVisibleCount] = useState(20);
+  const [currentTime, setCurrentTime] = useState(() => Date.now());
+
+  useEffect(() => {
+    const refresh = () => setCurrentTime(Date.now());
+    const timer = window.setInterval(refresh, 60000);
+    window.addEventListener('focus', refresh);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', refresh);
+    };
+  }, []);
 
   // Favorites hook
   const {
@@ -149,9 +161,19 @@ function MainApp() {
     };
   }, [userCoords, filters.maxDistanceMeters]);
 
+  const evaluatedRestaurants = useMemo(() => restaurants.map((restaurant) => ({
+    ...restaurant,
+    isOpenNow: getOpenNow(restaurant.openingHoursSummary, new Date(currentTime)),
+  })), [restaurants, currentTime]);
+  const hasUnknownHours = evaluatedRestaurants.some((restaurant) =>
+    restaurant.distanceMeters !== undefined &&
+    restaurant.distanceMeters <= filters.maxDistanceMeters &&
+    restaurant.isOpenNow === undefined
+  );
+
   // Filter and sort restaurants
   const filteredRestaurants = useMemo(() => {
-    return restaurants
+    return evaluatedRestaurants
       .filter((restaurant) => {
         // Search text filter
         if (filters.searchQuery.trim()) {
@@ -251,12 +273,12 @@ function MainApp() {
         // default: distance
         return (a.distanceMeters || 0) - (b.distanceMeters || 0);
       });
-  }, [restaurants, filters]);
+  }, [evaluatedRestaurants, filters]);
 
   // Start each changed search or filter at the first page.
   useEffect(() => {
     setVisibleCount(20);
-  }, [filteredRestaurants]);
+  }, [restaurants, filters]);
 
   // Handle switching to map view and focusing a restaurant
   const handleViewOnMap = (restaurant: Restaurant) => {
@@ -316,6 +338,13 @@ function MainApp() {
               setFilters={setFilters}
               totalResults={filteredRestaurants.length}
             />
+
+            {filters.onlyOpenNow && hasUnknownHours && !isLoading && (
+              <p role="status" className="text-sm text-amber-900 bg-amber-50 p-3 rounded-xl">
+                Algunos locales no tienen un horario que podamos confirmar y no aparecen con «Abierto ahora».
+                Desactiva el filtro para verlos.
+              </p>
+            )}
 
             {/* Split / Responsive Layout:
                 - On desktop (lg+): when tab is 'list', show list on left and map on right for best UX
@@ -399,10 +428,12 @@ function MainApp() {
                         <UtensilsCrossed className="w-7 h-7" />
                       </div>
                       <h3 className="text-lg font-bold text-stone-900 mb-1">
-                        No se encontraron restaurantes
+                        {filters.onlyOpenNow ? 'No hay locales con apertura confirmada ahora' : 'No se encontraron restaurantes'}
                       </h3>
                       <p className="text-xs sm:text-sm text-stone-500 mb-5 max-w-sm mx-auto">
-                        Prueba a ampliar el radio de búsqueda o a borrar los filtros aplicados.
+                        {filters.onlyOpenNow
+                          ? 'Desactiva «Abierto ahora» para ver también los locales cerrados o con horario sin confirmar.'
+                          : 'Prueba a ampliar el radio de búsqueda o a borrar los filtros aplicados.'}
                       </p>
                       <button
                         onClick={() =>
