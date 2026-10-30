@@ -87,6 +87,15 @@ export const RestaurantDetailModal: React.FC<RestaurantDetailModalProps> = ({
       `${restaurant.name} ${restaurant.address} carta menú`
     );
 
+  const googleMapsParams = new URLSearchParams({
+    api: '1',
+    query: [restaurant.name, restaurant.address !== 'Dirección no disponible' ? restaurant.address : '', restaurant.location.lat, restaurant.location.lng].filter(Boolean).join(' '),
+  });
+  if (/^ChI[A-Za-z0-9_-]+$/.test(restaurant.id)) {
+    googleMapsParams.set('query_place_id', restaurant.id);
+  }
+  const googleReviewsUrl = 'https://www.google.com/maps/search/?' + googleMapsParams.toString();
+
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/60 backdrop-blur-sm"
@@ -353,6 +362,24 @@ export const RestaurantDetailModal: React.FC<RestaurantDetailModalProps> = ({
               </a>
             </div>
           </div>
+
+          <section className="pt-4 border-t border-stone-100">
+            <h3 className="text-sm font-bold text-stone-800 mb-2">Valoraciones en Google</h3>
+            <p className="text-xs text-stone-500 mb-3">
+              Abre la ficha del restaurante en Google Maps para consultar las reseñas disponibles
+              y escribir tu valoración con tu cuenta de Google.
+            </p>
+            <a
+              href={googleReviewsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-white text-sm font-semibold rounded-xl"
+            >
+              <Star className="w-4 h-4" />
+              Leer y escribir reseñas en Google
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </section>
 
           {/* Notas personales */}
           <div className="pt-2 border-t border-stone-100">
