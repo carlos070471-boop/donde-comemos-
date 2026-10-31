@@ -5,7 +5,6 @@ const OVERPASS_ENDPOINTS = [
   'https://overpass.nchc.org.tw/api/interpreter',
   'https://overpass.kumi.systems/api/interpreter',
   'https://overpass-api.de/api/interpreter',
-  'https://overpass.nchc.org.tw/api/interpreter',
   'https://overpass.private.coffee/api/interpreter',
 ];
 
@@ -18,13 +17,19 @@ function websiteFromTags(tags: Record<string, string>): string | undefined {
   return tags.website || tags['contact:website'];
 }
 
+/** Only use explicitly linked photographs of this venue, never generic search images. */
 function photoFromTags(tags: Record<string, string>): string | undefined {
-  const direct = tags.image;
-  if (direct && /^https?:\/\//i.test(direct)) return direct;
-  const commons = tags.wikimedia_commons;
-  if (commons) {
-    const title = commons.replace(/^File:/i, '').trim();
-    if (title) return `https://commons.wikimedia.org/wiki/Special:Redirect/file/${encodeURIComponent(title)}?width=800`;
+  const candidates = [tags.image, tags['contact:image'], tags.wikimedia_commons];
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const value = raw.trim();
+    if (/^https:\/\//i.test(value)) return value;
+    // OSM supports Wikimedia Commons File: titles as well as direct URLs.
+    // Category: pages are not photographs and must not be used as images.
+    if (/^(?:File|Image):/i.test(value)) {
+      const filename = value.replace(/^(?:File|Image):/i, '').trim().replace(/ /g, '_');
+      if (filename) return `https://commons.wikimedia.org/wiki/Special:Redirect/file/${encodeURIComponent(filename)}?width=800`;
+    }
   }
   return undefined;
 }
