@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { ImageOff } from 'lucide-react';
-import { fetchRestaurantPhoto } from '../services/photoService';
 
 interface Props {
   restaurant: {
@@ -13,8 +12,7 @@ interface Props {
 }
 
 const photoMemory = new Map<string, string>();
-const pending = new Map<string, Promise<string | null>>();
-const STORAGE_KEY = 'donde_comemos_photo_urls_v2';
+const STORAGE_KEY = 'donde_comemos_photo_urls_v3';
 
 function cachedPhoto(id: string): string | undefined {
   if (photoMemory.has(id)) return photoMemory.get(id);
@@ -48,40 +46,17 @@ function forgetPhoto(id: string, url: string) {
   } catch { /* Ignore storage errors. */ }
 }
 
-async function resolvePhoto(restaurant: Props['restaurant']): Promise<string | null> {
-  const existing = pending.get(restaurant.id);
-  if (existing) return existing;
-  const request = fetchRestaurantPhoto(restaurant)
-    .then(photo => {
-      if (photo?.url) rememberPhoto(restaurant.id, photo.url);
-      return photo?.url || null;
-    })
-    .catch(error => {
-      console.warn('No se pudo recuperar la foto de', restaurant.name, error);
-      return null;
-    })
-    .finally(() => pending.delete(restaurant.id));
-  pending.set(restaurant.id, request);
-  return request;
-}
-
 export function RestaurantPhoto({ restaurant, className = '' }: Props) {
   const [url, setUrl] = useState<string | undefined>(() => restaurant.photoUrl || cachedPhoto(restaurant.id));
   const [imageFailed, setImageFailed] = useState(false);
 
   useEffect(() => {
-    let cancelled = false;
     const known = restaurant.photoUrl || cachedPhoto(restaurant.id);
     setUrl(known);
     setImageFailed(false);
     if (known) {
       rememberPhoto(restaurant.id, known);
-    } else {
-      resolvePhoto(restaurant).then(found => {
-        if (!cancelled && found) setUrl(found);
-      });
     }
-    return () => { cancelled = true; };
   }, [restaurant.id, restaurant.name, restaurant.photoUrl, restaurant.location?.lat, restaurant.location?.lng]);
 
   const mapsQuery = restaurant.location
@@ -107,7 +82,7 @@ export function RestaurantPhoto({ restaurant, className = '' }: Props) {
       ) : (
         <div className="w-full h-full flex flex-col items-center justify-center gap-1 p-2 text-center text-stone-500">
           <ImageOff className="w-6 h-6" />
-          <span className="text-[10px]">Fotografía no disponible en fuentes abiertas</span>
+          <span className="text-[10px]">No se pudo cargar la foto</span>
           <a className="text-[10px] underline text-amber-700"
             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapsQuery)}`}
             target="_blank" rel="noopener noreferrer" onClick={event => event.stopPropagation()}>
