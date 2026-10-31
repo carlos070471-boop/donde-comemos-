@@ -233,7 +233,7 @@ function MainApp() {
         }
 
         // Open now filter
-        if (filters.onlyOpenNow && restaurant.isOpenNow !== true) {
+        if (filters.onlyOpenNow && restaurant.isOpenNow === false) {
           return false;
         }
 
