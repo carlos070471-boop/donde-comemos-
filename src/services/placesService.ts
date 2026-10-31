@@ -86,23 +86,21 @@ function mapElements(data: any, center: Coordinates): Restaurant[] {
 }
 
 async function firstUsefulResult(query: string, center: Coordinates): Promise<Restaurant[]> {
-  const attempts = OVERPASS_ENDPOINTS.map(async endpoint => {
+  // Try one public endpoint at a time to avoid multiplying server load.
+  // A successful empty response is valid; do not misreport it as an outage.
+  const errors: string[] = [];
+  for (const endpoint of OVERPASS_ENDPOINTS) {
     try {
       const data = await queryOverpass(endpoint, query);
-      const restaurants = mapElements(data, center);
-      if (!restaurants.length) throw new Error('Sin resultados');
-      return restaurants;
+      if (!Array.isArray(data?.elements)) throw new Error('Respuesta sin elementos');
+      return mapElements(data, center);
     } catch (error) {
+      errors.push(`${endpoint}: ${String(error)}`);
       console.warn('Servidor Overpass no disponible:', endpoint, error);
-      throw error;
     }
-  });
-
-  try {
-    return await Promise.any(attempts);
-  } catch {
-    throw new Error('No se pudo conectar con los servidores gratuitos de restaurantes. Comprueba tu conexión e inténtalo de nuevo.');
   }
+  console.warn('Todos los servidores Overpass fallaron:', errors.join('; '));
+  throw new Error('No se pudo conectar con los servidores gratuitos de restaurantes. Inténtalo de nuevo más tarde.');
 }
 
 /** Busca locales cercanos con OpenStreetMap/Overpass sin API de pago. */
